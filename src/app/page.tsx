@@ -1,101 +1,264 @@
-import Image from "next/image";
+"use client";
+import { IResDummy, IResGroupUserDepartment, User } from "@/interfaces/IDummy";
+import React, { useState } from "react";
+import useSWR from "swr";
 
+const fetchData = async () => {
+  try {
+    const data = await fetch("https://dummyjson.com/users");
+    const dt: IResDummy = await data.json();
+    const dat = dt.users;
+    const grouped = dat.reduce((acc: { [key: string]: User[] }, user: User) => {
+      const department = user.company.department;
+      if (!acc[department]) {
+        acc[department] = [];
+      }
+      acc[department].push(user);
+      return acc;
+    }, {});
+    return grouped;
+  } catch (error) {
+    throw error;
+  }
+};
+const list = [
+  {
+    type: "Fruit",
+    name: "Apple",
+  },
+  {
+    type: "Vegetable",
+    name: "Broccoli",
+  },
+  {
+    type: "Vegetable",
+    name: "Mushroom",
+  },
+  {
+    type: "Fruit",
+    name: "Banana",
+  },
+  {
+    type: "Vegetable",
+    name: "Tomato",
+  },
+  {
+    type: "Fruit",
+    name: "Orange",
+  },
+  {
+    type: "Fruit",
+    name: "Mango",
+  },
+  {
+    type: "Fruit",
+    name: "Pineapple",
+  },
+  {
+    type: "Vegetable",
+    name: "Cucumber",
+  },
+  {
+    type: "Fruit",
+    name: "Watermelon",
+  },
+  {
+    type: "Vegetable",
+    name: "Carrot",
+  },
+];
+type Item = {
+  type: string;
+  name: string;
+};
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const [listAll, setListAll] = useState<Item[]>(list);
+  const [fruit, setFruit] = useState<Item[]>([]);
+  const [vegetable, setVegetable] = useState<Item[]>([]);
+  const [activeTimeouts, setActiveTimeouts] = useState<{
+    [key: string]: NodeJS.Timeout;
+  }>({});
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+  const handleMoveToType = (item: Item) => {
+    if (item.type === "Fruit") {
+      setFruit((prev) => [...prev, item]);
+    } else {
+      setVegetable((prev) => [...prev, item]);
+    }
+    setListAll((prev) => prev.filter((list) => list.name !== item.name));
+
+    // Clear any existing timeout for the item
+    if (activeTimeouts[item.name]) {
+      clearTimeout(activeTimeouts[item.name]);
+    }
+
+    // Set a new timeout for the item
+    const timeout = setTimeout(() => {
+      setListAll((prev) => [...prev, item]);
+      if (item.type === "Fruit") {
+        setFruit((prev) => prev.filter((i) => i.name !== item.name));
+      } else if (item.type === "Vegetable") {
+        setVegetable((prev) => prev.filter((i) => i.name !== item.name));
+      }
+
+      // Remove the timeout from activeTimeouts
+      setActiveTimeouts((prev) => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { [item.name]: _, ...rest } = prev;
+        return rest;
+      });
+    }, 5000);
+
+    setActiveTimeouts((prev) => ({ ...prev, [item.name]: timeout }));
+  };
+
+  const handleMoveToList = (item: Item) => {
+    // Clear any existing timeout for the item
+    if (activeTimeouts[item.name]) {
+      clearTimeout(activeTimeouts[item.name]);
+      setActiveTimeouts((prev) => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { [item.name]: _, ...rest } = prev;
+        return rest;
+      });
+    }
+
+    if (item.type === "Fruit") {
+      setFruit((prev) => prev.filter((i) => i.name !== item.name));
+    } else {
+      setVegetable((prev) => prev.filter((i) => i.name !== item.name));
+    }
+    setListAll((prev) => [...prev, item]?.filter((i) => i));
+  };
+
+  const clickRight = (e: React.MouseEvent, type: string) => {
+    e.stopPropagation();
+    if (e.type === "contextmenu") {
+      if (fruit.length === 0 && type === "Fruit") return;
+      if (vegetable.length === 0 && type === "Vegetable") return;
+
+      const item = type === "Fruit" ? fruit?.[0] : vegetable?.[0];
+      handleMoveToList(item);
+    }
+  };
+
+  const URLCommunity = [`/community`];
+  const { data: user } = useSWR<IResGroupUserDepartment>(
+    URLCommunity,
+    fetchData,
+    {
+      revalidateIfStale: false,
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+    }
+  );
+
+  return (
+    <section className="container">
+      <div className="inner my-10">
+        <h1 className="text-black">1. Auto Delete Todo List</h1>
+        <div className="flex items-center justify-between flex-wrap mb-10">
+          <div>
+            {listAll.map((item, index) => {
+              return (
+                <div
+                  onClick={() => {
+                    handleMoveToType(item);
+                  }}
+                  key={item.name + index}
+                  className="border border-gray-300 w-[200px] h-[50px] mb-2 flex items-center justify-center flex-col"
+                >
+                  <p className="text-black">{item.name}</p>
+                </div>
+              );
+            })}
+          </div>
+          <div
+            className="border border-gray-300 w-[300px] min-h-[638px] mb-2"
+            onContextMenu={(e) => clickRight(e, "Fruit")}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+            <div className="text-black bg-gray-300 flex items-center justify-center h-[50px] font-bold">
+              Fruit
+            </div>
+            <div className=" flex items-center justify-center flex-col mt-2">
+              {fruit.map((item, index) => {
+                return (
+                  <div
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleMoveToList(item);
+                    }}
+                    key={item.name + index}
+                    className="border  border-gray-300 w-[200px] h-[50px] mb-2 flex items-center justify-center flex-col"
+                  >
+                    <p className="text-black">{item.name}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div
+            className="border border-gray-300 w-[300px] min-h-[638px] mb-2"
+            onContextMenu={(e) => clickRight(e, "Vegetable")}
           >
-            Read our docs
-          </a>
+            <div className="text-black bg-gray-300 flex items-center justify-center h-[50px] font-bold">
+              Vegetable
+            </div>
+            <div className=" flex items-center justify-center flex-col mt-2">
+              {vegetable.map((item, index) => {
+                return (
+                  <div
+                    onClick={(e) => {
+                      e.stopPropagation();
+
+                      handleMoveToList(item);
+                    }}
+                    key={item.name + index}
+                    className="border  border-gray-300 w-[200px] h-[50px] mb-2 flex items-center justify-center flex-col"
+                  >
+                    <p className="text-black">{item.name}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+
+        {/* ================================ 2 .Create data from API (OPTIONAL) ================================*/}
+        <div className="border border-gray-300   my-2" />
+        <h1 className="text-black mb-2">2. Create data from API (OPTIONAL)</h1>
+
+        <div className="flex items-start gap-2 flex-wrap">
+          {user &&
+            Object.keys(user).map((department, index) => {
+              return (
+                <div
+                  key={department + index}
+                  className="border border-gray-300 w-[300px]  mb-2"
+                >
+                  <div className="text-black bg-gray-300 flex items-center justify-center h-[50px] font-bold">
+                    {department}
+                  </div>
+                  <div className=" flex items-center justify-center flex-col mt-2">
+                    {user[department].map((item, index) => {
+                      return (
+                        <div
+                          key={item.id + index}
+                          className="border  border-gray-300 w-[200px] h-[50px] mb-2 flex items-center justify-center flex-col"
+                        >
+                          <p className="text-black">
+                            {item.firstName} {item.lastName}
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+        </div>
+      </div>
+    </section>
   );
 }
