@@ -113,5 +113,17 @@ export enum Role {
 
 
 export interface IResGroupUserDepartment {
-   [key: string]: User[]
+   [key: string]: IResponseUser; //User[]
+}
+
+export interface IResponseUser {
+    male: number,                      // ---> Male Count Summary
+    female: number,                    // ---> Female Count Summary
+    ageRange: string,            // ---> Range
+    hair: {                       // ---> "Color": Color Summary
+        [key: string]: number
+    },
+    addressUser: {                // ---> "firstNamelastName": postalCode
+        [key: string]: string,
+    }
 }

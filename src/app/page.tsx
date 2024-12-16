@@ -1,5 +1,5 @@
 "use client";
-import { IResDummy, IResGroupUserDepartment, User } from "@/interfaces/IDummy";
+import { IResDummy, IResponseUser, User } from "@/interfaces/IDummy";
 import React, { useState } from "react";
 import useSWR from "swr";
 
@@ -16,7 +16,45 @@ const fetchData = async () => {
       acc[department].push(user);
       return acc;
     }, {});
-    return grouped;
+    const users: { [key: string]: IResponseUser } = {};
+
+    for (const key in grouped) {
+      const hair = grouped[key].reduce(
+        (acc: { [key: string]: number }, user: User) => {
+          const color = user.hair.color;
+          if (!acc[color]) {
+            acc[color] = 0;
+          }
+          acc[color] = grouped[key].filter(
+            (i) => i.hair.color === color
+          ).length;
+          return acc;
+        },
+        {}
+      );
+
+      const addressUser = grouped[key].reduce(
+        (acc: { [key: string]: string }, user: User) => {
+          const name = user.firstName + user.lastName;
+          if (!acc[name]) {
+            acc[name] = "";
+          }
+          acc[name] = user.address.postalCode;
+          return acc;
+        },
+        {}
+      );
+      const age = grouped[key]?.map((i) => i.age);
+      const dt: IResponseUser = {
+        male: grouped[key]?.filter((i) => i.gender === "male")?.length, // ---> Male Count Summary
+        female: grouped[key]?.filter((i) => i.gender === "female")?.length, // ---> Female Count Summary
+        ageRange: `${Math.min(...age)}-${Math.max(...age)}`, // ---> Range
+        hair: hair, // ---> Color Summary
+        addressUser: addressUser, // ---> "firstNamelastName": postalCode
+      };
+      users[key] = dt;
+    }
+    return users;
   } catch (error) {
     throw error;
   }
@@ -143,20 +181,16 @@ export default function Home() {
   };
 
   const URLCommunity = [`/community`];
-  const { data: user } = useSWR<IResGroupUserDepartment>(
-    URLCommunity,
-    fetchData,
-    {
-      revalidateIfStale: false,
-      revalidateOnFocus: false,
-      revalidateOnReconnect: false,
-    }
-  );
+  const { data: user } = useSWR(URLCommunity, fetchData, {
+    revalidateIfStale: false,
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+  });
 
   return (
     <section className="container">
       <div className="inner my-10">
-        <h1 className="text-black">1. Auto Delete Todo List</h1>
+        <h1 className="text-white">1. Auto Delete Todo List</h1>
         <div className="flex items-center justify-between flex-wrap mb-10">
           <div>
             {listAll.map((item, index) => {
@@ -168,7 +202,7 @@ export default function Home() {
                   key={item.name + index}
                   className="border border-gray-300 w-[200px] h-[50px] mb-2 flex items-center justify-center flex-col"
                 >
-                  <p className="text-black">{item.name}</p>
+                  <p className="text-white">{item.name}</p>
                 </div>
               );
             })}
@@ -191,7 +225,7 @@ export default function Home() {
                     key={item.name + index}
                     className="border  border-gray-300 w-[200px] h-[50px] mb-2 flex items-center justify-center flex-col"
                   >
-                    <p className="text-black">{item.name}</p>
+                    <p className="text-white">{item.name}</p>
                   </div>
                 );
               })}
@@ -217,7 +251,7 @@ export default function Home() {
                     key={item.name + index}
                     className="border  border-gray-300 w-[200px] h-[50px] mb-2 flex items-center justify-center flex-col"
                   >
-                    <p className="text-black">{item.name}</p>
+                    <p className="text-white">{item.name}</p>
                   </div>
                 );
               })}
@@ -227,37 +261,40 @@ export default function Home() {
 
         {/* ================================ 2 .Create data from API (OPTIONAL) ================================*/}
         <div className="border border-gray-300   my-2" />
-        <h1 className="text-black mb-2">2. Create data from API (OPTIONAL)</h1>
+        <h1 className="text-white mb-2">2. Create data from API (OPTIONAL)</h1>
 
-        <div className="flex items-start gap-2 flex-wrap">
-          {user &&
-            Object.keys(user).map((department, index) => {
-              return (
-                <div
-                  key={department + index}
-                  className="border border-gray-300 w-[300px]  mb-2"
-                >
-                  <div className="text-black bg-gray-300 flex items-center justify-center h-[50px] font-bold">
-                    {department}
-                  </div>
-                  <div className=" flex items-center justify-center flex-col mt-2">
-                    {user[department].map((item, index) => {
-                      return (
-                        <div
-                          key={item.id + index}
-                          className="border  border-gray-300 w-[200px] h-[50px] mb-2 flex items-center justify-center flex-col"
-                        >
-                          <p className="text-black">
-                            {item.firstName} {item.lastName}
-                          </p>
-                        </div>
-                      );
-                    })}
-                  </div>
+        {user &&
+          Object.keys(user).map((key, index) => {
+            return (
+              <div
+                key={key + index}
+                className="border border-gray-300 w-auto mb-3"
+              >
+                <p className="text-black bg-gray-300 flex items-center justify-center h-auto font-bold">
+                  {key}
+                </p>
+                <div className="p-2 ">
+                  <p className="text-white">
+                    <b className="underline underline-offset-4">Male:</b> {user[key].male}
+                  </p>
+                  <p className="text-white">
+                    <b className="underline underline-offset-4">Female:</b> {user[key].female}
+                  </p>
+                  <p className="text-white">
+                    <b className="underline underline-offset-4">AgeRange:</b> {user[key].ageRange}
+                  </p>
+                  <p className="text-white break-words">
+                    <b className="underline underline-offset-4">AddressUser:</b>{" "}
+                    {JSON.stringify(user[key].addressUser)}
+                  </p>
+                  <p className="text-white  break-words">
+                    <b className="underline underline-offset-4">Hair:</b>{" "}
+                    {JSON.stringify(user[key].hair)}
+                  </p>
                 </div>
-              );
-            })}
-        </div>
+              </div>
+            );
+          })}
       </div>
     </section>
   );
